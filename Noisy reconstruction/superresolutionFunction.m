@@ -41,11 +41,11 @@ function[] = superresolutionFunction(SNR , separation ,lambda,dz ,numIter)
 %%
     for i = 1:numIter
     noise =  randn(M,1);
-    xtrue = zeros(N, 1);
+    rtrue = zeros(N, 1);
     % xtrue(61:90) = 100;
     startpoint = randi([100 800],1,1); 
-    xtrue( startpoint ) = 100;
-    xtrue( startpoint + separation) = 100;
+    rtrue( startpoint ) = 100;
+    rtrue( startpoint + separation) = 100;
 
     %temp = xtrue;
     % noise = noise .* sqrt((sum(xtrue.^2) / 10.^(20/10)) ./ sum(noise.^2));
@@ -53,18 +53,18 @@ function[] = superresolutionFunction(SNR , separation ,lambda,dz ,numIter)
     matTranObj = specObj .* matFourObj;
     matTranRec = specRec .* matFourRec;
     %  
-    b = matTranObj * xtrue;
+    b = matTranObj * rtrue;
     noise = noise .* sqrt((sum(abs(b).^2) / 10^(SNR/10)) ./ sum(abs(noise).^2));
     b = b + noise;
     % b = hilbert(b);
     D = eye(T);
    
-    [x, history] = lasso((matTranRec), b, D, lambda, 10, 1);
+    [r, history] = lasso((matTranRec), b, D, lambda, 10, 1);
 
 %%
 % Store the result
-    result(1,:, i) = [x', zeros( 1, N-T) ];
-    result(2,:, i) = xtrue;
+    result(1,:, i) = [r', zeros( 1, N-T) ];
+    result(2,:, i) = rtrue;
 
 end
 %%

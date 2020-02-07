@@ -1,13 +1,13 @@
-function [z, history] = lasso(A, b, D, lambda, rho, alpha)   
+function [s, history] = lasso(C, i, D, lambda, rho, alpha)   
 % lasso  Solve lasso problem via ADMM
 %
-% [z, history] = lasso(A, b, lambda, rho, alpha);
+% [s, history] = lasso(C, i, D, lambda, rho, alpha)   ;
 %
 % Solves the following problem via ADMM:
 %
-%   minimize 1/2*|| Ax - b ||_2^2 + \lambda ||Dx ||_1
+%   minimize 1/2*|| Cr - i ||_2^2 + \lambda ||Dx ||_1
 %
-% The solution is returned in the vector x.
+% The solution is returned in the vector r.
 %
 % history is a structure that contains the objective value, the primal and
 % dual residual norms, and the tolerances for the primal and dual residual
@@ -26,17 +26,17 @@ MAX_ITER = 10000;
 ABSTOL   = 1e-4;
 RELTOL   = 1e-2;
 
-[m, n] = size(A);
+[m, n] = size(C);
 
 % save a matrix-vector multiply
 
-Atb = A' * b;
-x = zeros(n,1);
-z = zeros(n,1);
+Atb = C' * i;
+r = zeros(n,1);
+s = zeros(n,1);
 u = zeros(n,1);
 
 % cache the factorization
-[L U] = factor(A, rho , D);
+[L U] = factor(C, rho , D);
 
 if ~QUIET
     fprintf('%3s\t%10s\t%10s\t%10s\t%10s\t%10s\n', 'iter', ...
@@ -45,26 +45,26 @@ end
 
 for k = 1:MAX_ITER
 
-    % x-update
-    q = Atb + rho*D'*(z - u);  
+    % r-update
+    q = Atb + rho*D'*(s - u);  
 
-       x = U \ (L \ q);
-    % z-update with relaxation
-    zold = z;
-    x_hat = alpha*D*x + (1 - alpha)*zold;
-    z = shrinkage(x_hat + u, lambda/rho);
+       r = U \ (L \ q);
+    % s-update with relaxation
+    sold = s;
+    x_hat = alpha*D*r + (1 - alpha)*sold;
+    s = shrinkage(x_hat + u, lambda/rho);
 
     % u-update
-    u = u + (x_hat - z);
+    u = u + (x_hat - s);
 
     % diagnostics, reporting, termination checks
     
-    history.objval(k)  = objective(A, b, lambda, x,D);
+    history.objval(k)  = objective(C, i, lambda, r,D);
 
-    history.r_norm(k)  = norm(D*x - z);
-    history.s_norm(k)  = norm(-rho*D'*(z - zold));
+    history.r_norm(k)  = norm(D*r - s);
+    history.s_norm(k)  = norm(-rho*D'*(s - sold));
 
-    history.eps_pri(k) = sqrt(n)*ABSTOL + RELTOL*max(norm(D*x), norm(-z));
+    history.eps_pri(k) = sqrt(n)*ABSTOL + RELTOL*max(norm(D*r), norm(-s));
     history.eps_dual(k)= sqrt(n)*ABSTOL + RELTOL*norm(rho*D'*u);
 
     if ~QUIET

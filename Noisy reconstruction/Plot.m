@@ -1,6 +1,6 @@
 clear all
 % file name 
-    load ('twospike_30_500_1e-06_100.mat')
+    load ('twospike_25_500_1e-06_150.mat')
 % I equals to the iteration number
     I = 1 ;
     T =500;
