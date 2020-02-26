@@ -61,7 +61,7 @@ for k = 1:MAX_ITER
     
     history.objval(k)  = objective(C, i, lambda, r,D);
 
-    history.r_norm(k)  = norm(D*r - s);
+    history.r_norm(k)  = norm(D*s - r);
     history.s_norm(k)  = norm(-rho*D'*(s - sold));
 
     history.eps_pri(k) = sqrt(n)*ABSTOL + RELTOL*max(norm(D*r), norm(-s));
