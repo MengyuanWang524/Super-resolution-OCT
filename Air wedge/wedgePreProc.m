@@ -3,24 +3,27 @@
 % by using a two-term Gaussian model
 % Author: Yuye Ling
 
+factor = 8;
 linData = h5read('rawSpectrumAirWedgeThorlab.h5','/rawData');
-img = abs(ifft(linData(:, :), size(linData, 1)));
+img = abs(ifft(linData(:, :), size(linData, 1) * factor));
 figure('Name','Original air wedge image'); 
-imagesc(10.*log10(img(1: 1024, :)));colormap hot; colorbar
+imagesc(10 .* log10(img(1: 1024 * factor, :))); colormap hot; colorbar
 caxis([0, 20])
 
-cropImg = img(281: 480, :);
+axialGrid = [280 * factor + 1: 480 * factor]';
+cropImg = img(axialGrid, :);
 figure('Name','Cropped image'); 
-imagesc(10.*log10(cropImg));colormap hot; colorbar
+imagesc(10.*log10(cropImg)); colormap hot; colorbar
 caxis([0, 20])
-index = [281: 1: 480]';
+
 
 options = fitoptions('gauss2', 'Robust', 'LAR', 'MaxFunEvals', 6000, ...
     'MaxIter', 4000);
 % The start point is estimated by inspection
-options.StartPoint = [550 307 0.8 50 440 0.9];
+options.StartPoint = [848 / factor 317 * factor 0.8 500 / factor 346 * factor 0.9];
 options.Lower = [0 0 0 0 0 0];
 for iCol = 1: size(cropImg, 2)
+    iCol
     if (iCol > 1)
         % The starting point for the new fitting will be set to the fitting
         % parameters from the last one
@@ -28,7 +31,7 @@ for iCol = 1: size(cropImg, 2)
             gauss2Fit{iCol - 1}.c1 gauss2Fit{iCol - 1}.a2 ...
             gauss2Fit{iCol - 1}.b2 gauss2Fit{iCol - 1}.c2];
     end
-    gauss2Fit{iCol} = fit(index, cropImg(:, iCol), 'gauss2', options);
+    gauss2Fit{iCol} = fit(axialGrid, cropImg(:, iCol), 'gauss2', options);
     locTop(iCol) = gauss2Fit{iCol}.b1;
     peakTop(iCol) = gauss2Fit{iCol}.a1;
     locBot(iCol) = gauss2Fit{iCol}.b2;
@@ -37,31 +40,38 @@ for iCol = 1: size(cropImg, 2)
 end
 
 figure('Name','Exemplary fitting results'); 
-plot(index, cropImg(:, 2000));
+plot(axialGrid, cropImg(:, 2000));
 hold on; plot(gauss2Fit{2000})
 
-% We use the data (sep) up to 2475th column to fit the angle between the
-% top and bottom interface
-% The lateral pixel size is 2 um (3000 pixels for 6 mm FOV)
-% The axial pixel size is 1.9438 um
-dx = 2e-6;
-
-lateralGrid = [2000: 1: 2449];
-thick = thickAirWedge(2001:2450);
-[thickFit, paraFit] = fit(lateralGrid', thick', 'poly1');
+lateralGrid = [2001: 1: 2450];
+thick = thickAirWedge(lateralGrid);
+[thickFit, paraFit] = fit(lateralGrid', thick', 'poly1', 'Exclude', [398: 400]);
 angleWedge = atand(thickFit.p1);
+% lateralGrid = [2351: 2500]';
 
-figure('Name','Fitting the angle of the wedge'); 
+
+figure('Name','Fitting the angle of the wedge');
 plot(lateralGrid, thick);
 hold on; plot(thickFit)
-text(4.72e-3,5,sprintf('Rsq = %g\nAdj = %g',paraFit.rsquare,paraFit.adjrsquare))
+text(2020,15,sprintf('Rsq = %g\nAdj = %g',paraFit.rsquare,paraFit.adjrsquare))
 
 % The top and bottom interfaces are fitted as well
-% We only use the last 100 columns before the tipping point of the wedge
-lateralGrid = [2100 * dx: dx: dx * 2249];
-top = locTop(2101:2250);
-bot = locBot(2101:2250);
-[topFit, paraFit] = fit(lateralGrid', top', 'poly1');
-[botFit, paraFit] = fit(lateralGrid', bot', 'poly1');
+% We only use the last column 2321 to 2470 before the tipping point of the
+% wedge, becuase the interfaces by themselves have aberrations
+lateralGrid = [2351: 1: 2450];
+top = locTop(lateralGrid);
+bot = locBot(lateralGrid);
+[topFit, paraFitTop] = fit(lateralGrid', top', 'poly1');
+[botFit, paraFitBot] = fit(lateralGrid', bot', 'poly1', 'Exclude', [47: 49]);
+
+figure('Name','Fitting the top interface of the wedge');
+plot(lateralGrid, top);
+hold on; plot(topFit)
+text(2375,2569,sprintf('Rsq = %g\nAdj = %g',paraFitTop.rsquare,paraFitTop.adjrsquare))
+
+figure('Name','Fitting the bottom interface of the wedge');
+plot(lateralGrid, bot);
+hold on; plot(botFit)
+text(2375,2585,sprintf('Rsq = %g\nAdj = %g',paraFitBot.rsquare,paraFitBot.adjrsquare))
 
 save('wedgePreProc.mat');
