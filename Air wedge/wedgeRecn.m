@@ -4,12 +4,20 @@
 % Lucy-Richardson deconvolution algorithm which is available in MATLAB.
 % Authors: Yuye Ling and Mengyuan Wang
 
+clear all
+close all
+
 load('wedgePreProc.mat');
 load('wedgeSim.mat');
+linData = h5read('rawSpectrumAirWedgeThorlab.h5','/rawData');
 % numSpec defines the sampling number of the spectral interferogram
 % numRecn defines the grid size of the original function
 numSpec = 2048;
 numRecn = 70000;
+factor = 8;
+
+lateralGrid = [2351: 1: 2500];
+axialGrid = [2451: 2750]';
 
 % The starting and ending wavelength are obtained directly from Thorlabs
 % support department
@@ -20,7 +28,7 @@ kEnd = 2 * pi / lambdaSt;
 k = linspace(kEnd, kSt, numSpec)';
 load('Sk.mat');
 Sk = Sk ./ (sum(Sk)) * numRecn;
-fringe = linData(:, 2351: 2500, 1);
+fringe = linData(:, lateralGrid, 1);
 
 % The lateral pixel size is 2 um (3000 pixels for 6 mm FOV)
 % The axial pixel size is 1.9438 um
@@ -41,7 +49,7 @@ zRecn = linspace(0, (numRecn - 1) * dzRecn, numRecn)';
 % We first use Lucy-Richardson algorithm to deconvolve the zero padded
 % image
 PSF = abs(ifftshift(ifft(Sk, factor * numSpec)));
-lateralGrid = [2351: 1: 2500];
+
 img = img(:, lateralGrid);
 for iCol = 1: length(topTrue)
     simDeconvImg(:, iCol) = deconvlucy(simImg(:, iCol), PSF);
@@ -50,12 +58,11 @@ end
 
 figure('Name','The deconvolved image (Lucy-Richardson algorithm w/ 8x padding)');
 set(gcf,'outerposition',get(0,'screensize'));
-imagesc(lateralGrid * dx * 1e6, [2551: 2650] * dzFFT * 1e6, 10 .* log10(deconvImg(2551: 2650, 91: end))); 
+imagesc(lateralGrid * dx * 1e6, axialGrid' * dzRecn * 1e6, 10 .* log10(deconvImg(axialGrid, :))); 
 colormap hot; colorbar; caxis([-5, 6])
 
 % We use the same technique to fit the deconvolved image (experimental) to
 % obtain the location of top and bottom interfaces
-axialGrid = [2551: 2650]';
 thickTrue = thickFit.p1 .* lateralGrid + thickFit.p2; 
 for iCol = 1: 150
     if (iCol > 1)
@@ -63,7 +70,7 @@ for iCol = 1: 150
         gauss2Fit{iCol - 1}.c1 gauss2Fit{iCol - 1}.a2 ...
         gauss2Fit{iCol - 1}.b2 gauss2Fit{iCol - 1}.c2];
     end
-    gauss2Fit{iCol} = fit(axialGrid, deconvImg(2551: 2650, iCol), 'gauss2');
+    gauss2Fit{iCol} = fit(axialGrid, deconvImg(axialGrid', iCol), 'gauss2');
     locTopDeconv(iCol) = gauss2Fit{iCol}.b1;
     peakTopDeconv(iCol) = gauss2Fit{iCol}.a1;
     locBotDeconv(iCol) = gauss2Fit{iCol}.b2;
@@ -71,6 +78,9 @@ for iCol = 1: 150
     thickAirWedgeDeconv(iCol) = abs(locTopDeconv(iCol) - locBotDeconv(iCol));
     errDeconv(iCol) = thickAirWedgeDeconv(iCol) - thickTrue(iCol);
 end
+
+err = thickAirWedge(lateralGrid) - thickTrue;
+
 % Fit the deconvolved image (simulated)
 for iCol = 1: 150
     if (iCol > 1)
@@ -78,7 +88,7 @@ for iCol = 1: 150
         gauss2Fit{iCol - 1}.c1 gauss2Fit{iCol - 1}.a2 ...
         gauss2Fit{iCol - 1}.b2 gauss2Fit{iCol - 1}.c2];
     end
-    gauss2Fit{iCol} = fit(axialGrid, simDeconvImg(2551: 2650, iCol), 'gauss2');
+    gauss2Fit{iCol} = fit(axialGrid, simDeconvImg(axialGrid', iCol), 'gauss2');
     locTopSimDeconv(iCol) = gauss2Fit{iCol}.b1;
     peakTopSimDeconv(iCol) = gauss2Fit{iCol}.a1;
     locBotSimDeconv(iCol) = gauss2Fit{iCol}.b2;
@@ -105,9 +115,9 @@ end
 
 recImg = h5read('recExpImg_factor_8.h5','/rawData');
 
-figure('Name','The reconstructed image (Proposed method)');
+figure('Name','The reconstructed image from experimental data (Proposed method)');
 set(gcf,'outerposition',get(0,'screensize'));
-imagesc(lateralGrid * dx * 1e6, [2551: 2650] * dzFFT * 1e6, 10 .* log10(recImg(2551: 2650, 91: end))); 
+imagesc(lateralGrid * dx * 1e6, axialGrid' * dzRecn * 1e6, 10 .* log10(recImg(axialGrid, :))); 
 colormap hot; colorbar; caxis([12, 22])
 
 axialGrid = [2551: 2650]';
@@ -125,3 +135,36 @@ for iCol = 1: 150
     thickAirWedgeRecn(iCol) = abs(locTopRecn(iCol) - locBotRecn(iCol));
     errRecn(iCol) = thickAirWedgeRecn(iCol) - thickTrue(iCol);
 end
+
+figure('Name','Comparison between the fitted thickness from different techniques');
+set(gcf,'outerposition',get(0,'screensize'));
+sz = 150;
+scatter(thickTrue * dzRecn * 1e6, thickAirWedge(lateralGrid) * dzRecn * 1e6 ...
+    , sz, 's', 'MarkerFaceColor', 'red', 'MarkerEdgeColor', 'red');
+hold on
+scatter(thickTrue * dzRecn * 1e6, thickAirWedgeDeconv * dzRecn * 1e6  ...
+    , sz,'MarkerFaceColor', 'blue', 'MarkerEdgeColor', 'blue');
+scatter(thickTrue * dzRecn * 1e6, thickAirWedgeRecn * dzRecn * 1e6...
+    , sz, 'd', 'MarkerFaceColor', 'black', 'MarkerEdgeColor', 'black');
+ax = gca;
+ax.XDir = 'reverse';
+
+
+figure('Name','Comparison between the relative error from different techniques');
+set(gcf,'outerposition',get(0,'screensize'));
+yRange = [-0.5 0.5];
+F1 = subplot(3, 1, 1);
+scatter(thickTrue * dzRecn * 1e6, err./thickTrue, sz, 's', ...
+    'MarkerFaceColor', 'red', 'MarkerEdgeColor', 'red');
+ylim(yRange)
+F1.XDir = 'reverse';
+F2 = subplot(3, 1, 2);
+scatter(thickTrue * dzRecn * 1e6, errDeconv./thickTrue, sz, ...
+    'MarkerFaceColor', 'blue', 'MarkerEdgeColor', 'blue');
+ylim(yRange)
+F2.XDir = 'reverse';
+F3 = subplot(3, 1, 3);
+scatter(thickTrue * dzRecn * 1e6, errRecn./thickTrue, sz, 'd', ...
+    'MarkerFaceColor', 'black', 'MarkerEdgeColor', 'black');
+ylim(yRange)
+F3.XDir = 'reverse';

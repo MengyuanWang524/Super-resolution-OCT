@@ -23,7 +23,6 @@ options = fitoptions('gauss2', 'Robust', 'LAR', 'MaxFunEvals', 6000, ...
 options.StartPoint = [848 / factor 317 * factor 0.8 500 / factor 346 * factor 0.9];
 options.Lower = [0 0 0 0 0 0];
 for iCol = 1: size(cropImg, 2)
-    iCol
     if (iCol > 1)
         % The starting point for the new fitting will be set to the fitting
         % parameters from the last one

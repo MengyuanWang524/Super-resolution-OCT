@@ -6,6 +6,7 @@
 clear all;
 % close all;
 load('wedgePreProc.mat');
+linData = h5read('rawSpectrumAirWedgeThorlab.h5','/rawData');
 
 % numSpec defines the sampling number of the spectral interferogram
 % numObj defines the grid size of the original function
