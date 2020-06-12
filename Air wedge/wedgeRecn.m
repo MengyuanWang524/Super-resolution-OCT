@@ -97,7 +97,7 @@ for iCol = 1: 150
     errSimDeconv(iCol) = thickAirWedgeSimDeconv(iCol) - thickTrue(iCol);
 end
 
-% The following codes reconstruct the image by using the proposed
+%% The following codes reconstruct the image by using the proposed
 % optimization technique
 % WARNING: depending on the chosen parameters, the program might take hours
 % to days to complete. It is suggested to skip this part and directly load
