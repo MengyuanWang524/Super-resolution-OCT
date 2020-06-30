@@ -29,6 +29,7 @@ k = linspace(kEnd, kSt, numSpec)';
 load('Sk.mat');
 Sk = Sk ./ (sum(Sk)) * numRecn;
 fringe = linData(:, lateralGrid, 1);
+img = abs(ifft(fringe, factor * numSpec));
 
 % The lateral pixel size is 2 um (3000 pixels for 6 mm FOV)
 % The axial pixel size is 1.9438 um
@@ -50,7 +51,7 @@ zRecn = linspace(0, (numRecn - 1) * dzRecn, numRecn)';
 % image
 PSF = abs(ifftshift(ifft(Sk, factor * numSpec)));
 
-img = img(:, lateralGrid);
+% img = img(:, lateralGrid);
 for iCol = 1: length(topTrue)
     simDeconvImg(:, iCol) = deconvlucy(simImg(:, iCol), PSF);
     deconvImg(:, iCol) = deconvlucy(img(:, iCol), PSF);
